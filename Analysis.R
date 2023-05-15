@@ -76,18 +76,19 @@ data_measurements$depth_interpolated = round(data_measurements$depth_interpolate
 ######
 
 
+data_measurements$depth_interpolated = data_measurements$depth_interpolated*-1
 
 
 
-data_fucus = data_measurements %>% filter(presumed_species != "A. nodosum")
+data_fucus = data_measurements %>% filter(defining_morphology != "A. nodosum")
 
-#Do traits of fucus change on a depth gradiant
+#Do traits of fucus change on a depth gradient
 m1 = lm(TDMC ~ depth_interpolated, data = data_fucus)
 summary(m1)
-ggscatter(x = "SA_P", y = "depth_interpolated",
-          title = "SA:P variation over a depth gradient",
-          xlab = "SA:P", ylab = "Depth (cm)",
-          color = "Condition", palette = c("red", "black"),
+ggscatter(x = "depth_interpolated", y = "TDMC",
+          title = "",
+          xlab = "Depth (cm)", ylab = "LW_ratio",
+          color = "defining_morphology", palette = c("darkgreen", "orange", "lightgreen", "brown" ),
           data = data_fucus, add = "reg.line")
 
 
@@ -100,10 +101,10 @@ ggboxplot(x = "Condition  ", y = "LW_ratio", data = data_fucus)
 ggscatter(x = "length_mm", y = "LW_ratio", color = "Condition", data = data_fucus)
 
 
-m1 = lmer(TDMC ~ Condition   * length_mm + (1 | transectlabel), data = data_fucus)
+m1 = lmer(TDMC ~ Condition + length_mm + (1 | transectlabel), data = data_fucus)
 summary(m1)
 ggscatter(x = "depth_interpolated", y = "TDMC", 
-          color = "presumed_species", add = "reg.line", 
+          color = "Condition", add = "reg.line", 
           data = data_fucus, 
           palette = c("red", "darkgreen", "grey", "blue"),
           ellipse = TRUE, mean.point = TRUE,
@@ -113,14 +114,32 @@ ggboxplot(x = "transectlabel", y = "TDMC", color = "Condition ", data = data_fuc
 
 #Is it possible to identify germlings based on their traits
 #Is serratus distinguishable by traits - most likely with area
-m1 = lmer(wetweight_g ~ presumed_species * area_mm + (1 | transectlabel), data = data_fucus)
+
+ggboxplot(x = "Condition", y = "depth_interpolated", data = data_measurements)
+
+#pca
+library(car)
+library(ggfortify)
+library(MuMIn)
+
+m1 = lmer(TDMC ~ scale(length_mm) + scale(depth_interpolated) + (1 | transectlabel), data = data_fucus)
 summary(m1)
-ggscatter(x = "presumed_species", y = "area_mm", color = "Condition ", add = "reg.line", data = data_fucus)
+r.squaredGLMM(m1)
+qqp(resid(m1))
 
 
+data_pca = data_fucus %>% select(TDMC, SA_P, LW_ratio, LP_ratio, STAmm2_g, wetweight_g, depth_interpolated, Condition)
+data_pca = na.omit(data_pca)
+data_pca_result = prcomp(data_pca[c(-6, -7, -8)], scale = TRUE)
+screeplot(data_pca_result)
+data_pca_x = data.frame(data_pca_result$x)
+
+ggscatter(x = "PC1", y = "PC2", color = "PC3", add = "reg.line", data = data_pca_x)
+
+autoplot(data_pca_result, loadings = TRUE, loadings.label = TRUE, color = "Condition", size = "depth_interpolated", data = data_pca)
 
 
-#Does the distribution of germlings look different from the adult distribution
+#Does the distribution of germlings look different from the adult distribution, filter for sheltered
 
 
 
@@ -132,10 +151,10 @@ summary(m1)
 
 plot(data_measurements$knot, data_measurements$LW_ratio)
 library(ggpubr)
-ggscatter(x = "knot", y = "LW_ratio", color = "presumed_species", data = data_measurements,
+ggscatter(x = "knot", y = "LW_ratio", color = "defining_morphology", data = data_measurements,
           add = "reg.line")
-m1 = lm(TDMC ~ length_mm, data = data_measurements[data_measurements$presumed_species!="A. nodosum",])
+m1 = lm(TDMC ~ length_mm, data = data_measurements[data_measurements$defining_morphology!="A. nodosum",])
 summary(m1)
 
 
-ggboxplot(x = "Condition ", y = "STAmm2_g", data = data_measurements, color = "presumed_species")
+ggboxplot(x = "Condition ", y = "STAmm2_g", data = data_measurements, color = "defining_morphology")
