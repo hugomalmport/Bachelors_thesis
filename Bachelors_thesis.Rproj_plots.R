@@ -32,24 +32,24 @@ data = left_join(data_measurements, data_depth, by = "germling_label")
 
 
 #Plot
-#ggplot(data, aes(x = TDMC, y = width_mm, color = presumed_species, size = depth(calculated)) +
+#ggplot(data, aes(x = TDMC, y = width_mm, color = defining_morphology, size = depth(calculated)) +
  #  geom_point() +
   #theme_ipsum()
 
 
 #get table with mean and sd per species
-data_summary = data %>% group_by(presumed_species) %>% summarize(mean_depth = mean(depth_calculated, na.rm = TRUE),
+data_summary = data %>% group_by(defining_morphology) %>% summarize(mean_depth = mean(depth_calculated, na.rm = TRUE),
                                                                  sd_depth = sd(depth_calculated, na.rm = TRUE))
 
 
 ggplot() +
   geom_point(data = data_summary, 
-             mapping = aes(x = presumed_species,
-                           y = mean_depth, colour = presumed_species), 
+             mapping = aes(x = defining_morphology,
+                           y = mean_depth, colour = defining_morphology), 
              size = 2, shape = 19) +
 
 geom_errorbar(data = data_summary,
-                mapping = aes(x = presumed_species, colour = presumed_species, 
+                mapping = aes(x = defining_morphology, colour = defining_morphology, 
                               ymin = mean_depth - sd_depth,
                               ymax = mean_depth + sd_depth),
                 width = 0.05)
@@ -68,24 +68,24 @@ geom_errorbar(data = data_summary,
   
   ggplot(data = data, 
                mapping = aes(x = LW_ratio,
-                             y = depth_calculated, color = presumed_species, size = length_mm), 
+                             y = depth_calculated, color = defining_morphology, size = length_mm), 
                size = 2, shape = 19) +
   geom_point() +
     xlim(c(0, 20))
   
   
-plot(data %>% select(LW_ratio, depth_calculated, length_mm, `area(mm)`,`perimeter(mm)`,TDMC,LP_ratio,`SA:P`,`STA(mm(^2)g^-1))`))
-round(cor(data %>% select(LW_ratio, depth_calculated, length_mm, `area(mm)`,`perimeter(mm)`,TDMC,LP_ratio,`SA:P`,`STA(mm(^2)g^-1))`), use = "pairwise.complete.obs"), 3)
+plot(data %>% select(LW_ratio, depth_calculated, length_mm, area_mm, perimeter_mm, TDMC, LP_ratio, SA_P, STAmm2_g))
+round(cor(data %>% select(LW_ratio, depth_calculated, length_mm, area_mm, perimeter_mm, TDMC, LP_ratio, SA_P, STAmm2_g), use = "pairwise.complete.obs"), 3)
 
 
-data$presumed_species[is.na(data$presumed_species)] = "not yet defined"
-data_pca = na.omit(data %>% select(TDMC, LP_ratio, `STA(mm(^2)g^-1))`, LW_ratio, presumed_species, length_mm, depth_calculated))
+data$defining_morphology[is.na(data$defining_morphology)] = "not yet defined"
+data_pca = na.omit(data %>% select(TDMC, LP_ratio, STAmm2_g, LW_ratio, defining_morphology, length_mm, depth_calculated))
 
 
 
 pca = prcomp(data_pca[c(-5, -6, -7)], center = TRUE, scale = TRUE)
 screeplot(pca)
-autoplot(pca, loadings = TRUE, loadings.label = TRUE, data = data_pca, color = "presumed_species", size = "depth_calculated")
+autoplot(pca, loadings = TRUE, loadings.label = TRUE, data = data_pca, color = "defining_morphology", size = "depth_calculated")
 adonis2(scale(data_pca[c(-5, -6, -7)])~depth_calculated , data = data_pca, permutations = 9999 , method = "euclidian")
 
         

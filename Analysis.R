@@ -83,11 +83,11 @@ data_measurements$depth_interpolated = data_measurements$depth_interpolated*-1
 data_fucus = data_measurements %>% filter(defining_morphology != "A. nodosum")
 
 #Do traits of fucus change on a depth gradient
-m1 = lm(TDMC ~ depth_interpolated, data = data_fucus)
+m1 = lm(STAmm2_g ~ depth_interpolated, data = data_fucus)
 summary(m1)
-ggscatter(x = "depth_interpolated", y = "TDMC",
+ggscatter(x = "depth_interpolated", y = "STAmm2_g",
           title = "",
-          xlab = "Depth (cm)", ylab = "LW_ratio",
+          xlab = "Depth (cm)", ylab = "STAmm2_g",
           color = "defining_morphology", palette = c("darkgreen", "orange", "lightgreen", "brown" ),
           data = data_fucus, add = "reg.line")
 
