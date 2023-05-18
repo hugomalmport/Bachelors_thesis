@@ -6,6 +6,7 @@ library(dplyr)
 library(googlesheets4)
 library(lme4)
 library(lmerTest)
+library(directlabels)
 
 
 data_measurements = read_sheet("https://docs.google.com/spreadsheets/d/1fNnrs96uAcEXcz0evvIH6nLL-HG18aKn-hUdE6uLRuw/edit#gid=0", sheet = "measurements")
@@ -82,35 +83,73 @@ data_measurements$depth_interpolated = data_measurements$depth_interpolated*-1
 
 data_fucus = data_measurements %>% filter(defining_morphology != "A. nodosum")
 
-#Do traits of fucus change on a depth gradient
-m1 = lm(STAmm2_g ~ depth_interpolated, data = data_fucus)
+#####Do traits of fucus change on a depth gradient
+
+#SA:P
+m1 = lm(TDMC ~ depth_interpolated, data = data_fucus)
 summary(m1)
-ggscatter(x = "depth_interpolated", y = "STAmm2_g",
+ggscatter(x = "depth_interpolated", y = "TDMC",
           title = "",
-          xlab = "Depth (cm)", ylab = "STAmm2_g",
+          xlab = "Depth (cm)", ylab = "TDMC",
+          color = "defining_morphology", palette = c("darkgreen", "orange", "lightgreen", "brown" ),
+          data = data_fucus, add = "reg.line")
+#TDMC
+m2 = lm(SA_P ~ depth_interpolated, data = data_fucus)
+summary(m2)
+ggscatter(x = "depth_interpolated", y = "SA_P",
+          title = "",
+          xlab = "Depth (cm)", ylab = "SA_P",
+          color = "defining_morphology", palette = c("darkgreen", "orange", "lightgreen", "brown" ),
+          data = data_fucus, add = "reg.line")
+#LW ratio
+m3 = lm(LW_ratio ~ depth_interpolated, data = data_fucus)
+summary(m3)
+ggscatter(x = "depth_interpolated", y = "LW_ratio",
+          title = "",
+          xlab = "Depth (cm)", ylab = "Length width ratio",
           color = "defining_morphology", palette = c("darkgreen", "orange", "lightgreen", "brown" ),
           data = data_fucus, add = "reg.line")
 
+#LP ratio
+m4 = lm(LP_ratio ~ depth_interpolated, data = data_fucus)
+summary(m4)
+ggscatter(x = "depth_interpolated", y = "LP_ratio",
+          title = "",
+          xlab = "Depth (cm)", ylab = "Length perimeter ratio",
+          color = "defining_morphology", palette = c("darkgreen", "orange", "lightgreen", "brown" ),
+          data = data_fucus, add = "reg.line")
 
-#Is there a difference between exposed and sheltered
-m1 = lm(LW_ratio ~ Condition   * length_mm, data = data_fucus)
-summary(m1)
+#STA(mm2/g-1)
+m5 = lm(TDMC ~ depth_interpolated, data = data_fucus)
+summary(m5)
+ggscatter(x = "depth_interpolated", y = "STAmm2_g",
+          title = "",
+          xlab = "Depth (cm)", ylab = "STA(mm2/g)",
+          color = "defining_morphology", palette = c("darkgreen", "orange", "lightgreen", "brown" ),
+          data = data_fucus, add = "reg.line")
 
+####Is there a difference between exposed and sheltered
+m6 = lm(LW_ratio ~ Condition + length_mm, data = data_fucus)
+summary(m6)
 
-ggboxplot(x = "Condition  ", y = "LW_ratio", data = data_fucus)
-ggscatter(x = "length_mm", y = "LW_ratio", color = "Condition", data = data_fucus)
+#LW_ratio
+ggboxplot(x = "Condition", y = "LW_ratio", color = "Condition", 
+          xlab = "Condition", ylab = "Length width ratio",
+          palette = c("#FF6699", "#0099FF"),
+          data = data_fucus)
 
-
-m1 = lmer(TDMC ~ Condition + length_mm + (1 | transectlabel), data = data_fucus)
-summary(m1)
+#TDMC
+m7 = lmer(TDMC ~ Condition + length_mm + (1 | transectlabel), data = data_fucus)
+summary(m7)
 ggscatter(x = "depth_interpolated", y = "TDMC", 
-          color = "Condition", add = "reg.line", 
+          color = "Condition", add = "reg.line",
+          xlab = "Depth (cm)",
           data = data_fucus, 
-          palette = c("red", "darkgreen", "grey", "blue"),
+          palette = c("#FF3333", "#66CC00"),
           ellipse = TRUE, mean.point = TRUE,
           star.plot = TRUE)
 
-ggboxplot(x = "transectlabel", y = "TDMC", color = "Condition ", data = data_fucus)
+ggboxplot(x = "transectlabel", y = "TDMC", color = "Condition", data = data_fucus)
 
 #Is it possible to identify germlings based on their traits
 #Is serratus distinguishable by traits - most likely with area
@@ -122,16 +161,34 @@ library(car)
 library(ggfortify)
 library(MuMIn)
 
-m1 = lmer(TDMC ~ scale(length_mm) + scale(depth_interpolated) + (1 | transectlabel), data = data_fucus)
-summary(m1)
+m8 = lmer(TDMC ~ scale(length_mm) + scale(depth_interpolated) + (1 | transectlabel), data = data_fucus)
+summary(m8)
 r.squaredGLMM(m1)
 qqp(resid(m1))
-
 
 data_pca = data_fucus %>% select(TDMC, SA_P, LW_ratio, LP_ratio, STAmm2_g, wetweight_g, depth_interpolated, Condition)
 data_pca = na.omit(data_pca)
 data_pca_result = prcomp(data_pca[c(-6, -7, -8)], scale = TRUE)
-screeplot(data_pca_result)
+
+#PCA screeplot
+eigenvalues <- data_pca_result$sdev^2
+pcs <- 1:length(eigenvalues)
+regression_line <- lm(eigenvalues ~ pcs)
+
+screeplot(data_pca_result, main = "PCA", ylab = "Eigenvalues", xlab = "PCs")
+
+variance_percentage <- eigenvalues / sum(eigenvalues) * 100
+max_height <- max(data_pca_result$sdev)
+label_position <- eigenvalues + 0.02 * max_height
+
+labels <- c("38%", "29%", "17%", "12%", "4%")
+label_pcs <- c(1, 2, 3, 4, 5)
+
+text(label_pcs, label_position - 0.05 * max_height, labels, pos = 3, adj = c(0.5, 0.5))
+
+abline(regression_line, col = "black")
+
+
 data_pca_x = data.frame(data_pca_result$x)
 
 ggscatter(x = "PC1", y = "PC2", color = "PC3", add = "reg.line", data = data_pca_x)
@@ -143,18 +200,3 @@ autoplot(data_pca_result, loadings = TRUE, loadings.label = TRUE, color = "Condi
 
 
 
-######
-
-
-m1 = lm(LW_ratio ~ knot, data = data_measurements)
-summary(m1)
-
-plot(data_measurements$knot, data_measurements$LW_ratio)
-library(ggpubr)
-ggscatter(x = "knot", y = "LW_ratio", color = "defining_morphology", data = data_measurements,
-          add = "reg.line")
-m1 = lm(TDMC ~ length_mm, data = data_measurements[data_measurements$defining_morphology!="A. nodosum",])
-summary(m1)
-
-
-ggboxplot(x = "Condition ", y = "STAmm2_g", data = data_measurements, color = "defining_morphology")
