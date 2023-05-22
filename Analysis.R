@@ -515,4 +515,55 @@ chart <- ggplot(adult_data, aes(x = abs(depth_correct), fill = binomial_code)) +
 
 print(chart)
 
+#Adult morphology distribution - flip and reverse and stuff and add aschophyllum
+ggplot(adult_data, aes(x = depth_correct, fill = serrated)) +
+  geom_density(alpha = 0.7) +
+  xlab("Depth (cm)") +
+  ylab("Density (%)") +
+  scale_fill_manual(values = c("#FF99CC", "#6699FF", "#FF6666"), drop = TRUE) +
+  theme(axis.text = element_text(size = 15),
+        axis.title = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        legend.text = element_text(size = 15)) + 
+  guides(fill = guide_legend(title = "Morphology",
+                             label.theme = element_text(size = 15))) + 
+  ggtitle("Distribution of Adult Morphology")
 
+
+#Exposed and Sheltered Germlings 
+
+#Sheltered germlings
+# Remove NA values from Morphology variable
+data_sheltered = data_measurements %>% filter(Condition != "Exposed")
+data_sheltered <- data_sheltered[!is.na(data_sheltered$Morphology), ]
+
+ggplot(data_sheltered, aes(x = depth_interpolated, fill = Morphology)) +
+  geom_density(alpha = 0.7) +
+  xlab("Depth (cm)") +
+  ylab("Density (%)") +
+  scale_fill_manual(values = c("#FF99CC", "#6699FF", "#FF6666"), drop = TRUE) +
+  theme(axis.text = element_text(size = 15),
+        axis.title = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        legend.text = element_text(size = 15)) + 
+  guides(fill = guide_legend(title = "Morphology",
+                             label.theme = element_text(size = 15))) + 
+  ggtitle("Distribution of Sheltered Germling Morphology")
+
+#Exposed germlings - NA still there?
+
+data_exposed = data_measurements %>% filter(Condition != "Sheltered")
+data_exposed <- data_exposed[!is.na(data_exposed$Condition), ]
+
+ggplot(data_exposed, aes(x = depth_interpolated, fill = Morphology)) +
+  geom_density(alpha = 0.7) +
+  xlab("Depth (cm)") +
+  ylab("Density (%)") +
+  scale_fill_manual(values = c("#6699FF", "#FF6666"), drop = TRUE) +
+  theme(axis.text = element_text(size = 15),
+        axis.title = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        legend.text = element_text(size = 15)) + 
+  guides(fill = guide_legend(title = "Morphology",
+                             label.theme = element_text(size = 15))) + 
+  ggtitle("Distribution of Exposed Germling Morphology")
