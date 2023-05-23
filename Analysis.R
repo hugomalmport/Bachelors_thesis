@@ -8,26 +8,27 @@ library(lme4)
 library(lmerTest)
 library(directlabels)
 library(patchwork)
+library(tidyr)
 
-
+# Load the data from google sheets
 data_measurements = read_sheet("https://docs.google.com/spreadsheets/d/1fNnrs96uAcEXcz0evvIH6nLL-HG18aKn-hUdE6uLRuw/edit#gid=0", sheet = "measurements")
+
+## Depth calculations
+
+# Create a hypotenuse
 data_measurements$transect_pos_cm = data_measurements$knot*10-10
 
 
-#Add missing depths
+# Add missing depths
 data_depth = read_sheet("https://docs.google.com/spreadsheets/d/1fNnrs96uAcEXcz0evvIH6nLL-HG18aKn-hUdE6uLRuw/edit#gid=0", sheet = "depth")
 
 
-# here i recalculate the depth 
+# Here the depth is recalculated 
 data_depth$depth_corrected = data_depth$`viva(cm)` + data_depth$`depth_measured (cm)`
 
-# here i remove the depth corrected when there is no measurement
+# Here the depth_corrected is removed when there is no measurement
 data_depth$depth_corrected[is.na(data_depth$`depth_measured (cm)`)]=NA
 data_depth$transect_pos_cm = data_depth$knot*10-10
-
-
-library(tidyr)
-library(dplyr)
 
 
 # Step 1: Interpolation within known points
@@ -71,6 +72,8 @@ for(i in unique(data_depth$transectlabel)) {
 
 # In these for-loops, we iterate over each unique transect. For each transect, we first compute the slope at the start (or end) using the first (or last) non-NA interpolated depth value. We then identify the indices of the depth_interpolated values to be replaced, and replace them with the extrapol
 
+# Join the depth with the original data and round it to 2 decimals
+
 data_measurements = left_join(data_measurements,data_depth, by =c("transectlabel","transect_pos_cm"))
 data_measurements$depth_interpolated = round(data_measurements$depth_interpolated, 2)
 
@@ -78,9 +81,12 @@ data_measurements$depth_interpolated = round(data_measurements$depth_interpolate
 ######
 
 
+#Make the interpolated depth positive
+
 data_measurements$depth_interpolated = data_measurements$depth_interpolated*-1
 
 
+# Filter away A. nodosum
 
 data_fucus = data_measurements %>% filter(Morphology != "A. nodosum")
 
@@ -142,13 +148,13 @@ plot_lw <- ggscatter(x = "depth_interpolated", y = "LW_ratio",
 #2. Serration is a suboptimal identifyer in small life stages are there other things changing with depth?
 m3 = lm(LW_ratio ~ depth_interpolated, data = data_fucus)
 summary(m3)
-#3. Lenght width ratio also changes with depth
+#3. Length width ratio also changes with depth
 
-#4 is this just because the shallow germlings are smaller? - control for length
+#4 Is this just because the shallow germlings are smaller? - control for length
 m3 = lm(LW_ratio ~ depth_interpolated + length_mm, data = data_fucus)
 summary(m3)
 
-#5 no, it still persists if we control for length - p = 0.00448
+#5 No, it still persists if we control for length - p = 0.00448
 
 t.test(LW_ratio ~ Morphology, data = data_fucus)
 
@@ -177,20 +183,6 @@ plot_lp <- ggscatter(x = "depth_interpolated", y = "LP_ratio",
 
 cor.test(data_fucus$LP_ratio , data_fucus$depth_interpolated, method = "pearson")
 
-#Something happens to the LP ratio when the germlings reaches 25 mm, maybe Serratus developes serration then?
-ggscatter(x = "depth_interpolated", y = "LP_ratio",
-          title = "",
-          xlab = "Depth (cm)", ylab = "Length perimeter ratio",
-          color = "Morphology", palette = c("darkgreen", "orange"),
-          data = data_fucus[data_fucus$length_mm>25,], add = "reg.line")
-
-ggscatter(x = "depth_interpolated", y = "LP_ratio",
-          title = "",
-          xlab = "Depth (cm)", ylab = "Length perimeter ratio",
-          color = "Morphology", palette = c("darkgreen", "orange"),
-          data = data_fucus, add = "reg.line")
-# when they are bigger the lp ratio is differnt, when they are small, it is not
-
 
 #STA(mm2/g-1)
 m5 = lm(STAmm2_g ~ depth_interpolated, data = data_fucus)
@@ -200,7 +192,7 @@ summary(m5_length)
 
 #STA plot
 plot_sta <- ggscatter(x = "depth_interpolated", y = "STAmm2_g",
-                     xlab = "Depth (cm)", ylab = "STA (mm^2/g)",
+                     xlab = "Depth (cm)", ylab = "STA (mm(^2)/g)",
                      color = "Morphology",
                      palette = c("#3399FF", "#FF6666"),
                      data = data_fucus, size = 4, alpha = 0.7) +
@@ -219,21 +211,69 @@ combined_plots <- plot_tdmc + plot_sap + plot_lw + plot_lp + plot_sta +
         legend.text = element_text(size = 15))
 
 combined_plots
-
+ggsave("C:/Users/hugom/OneDrive/Skrivbord/examensarbete/Graphs/scatter_plots.png",
+       plot = combined_plots, width = 15, height = 10,
+       dpi = 300)
 
 ####Is there a difference between exposed and sheltered
+#Boxplots
+
 m6 = lm(LW_ratio ~ Condition, data = data_fucus)
 summary(m6)
 m6 = lm(LW_ratio ~ Condition + length_mm, data = data_fucus)
 summary(m6)
 
-#LW_ratio
-ggboxplot(x = "Condition", y = "LW_ratio", color = "Condition", 
-          xlab = "Condition", ylab = "Length width ratio",
-          palette = c("#FF6699", "#0099FF"),
-          data = data_fucus)
-
 #TDMC
+box_tdmc = ggboxplot(x = "Condition", y = "TDMC", color = "Morphology", 
+          xlab = "Condition", ylab = "TDMC",
+          palette = c("#FF6666", "#0099FF"),
+          data = data_fucus)
+          #TDMC showed no difference between the Conditions and or Morphologies
+#SAP
+box_sap = ggboxplot(x = "Condition", y = "SA_P", color = "Morphology", 
+          xlab = "Condition", ylab = "SA:P",
+          palette = c("#FF6666", "#0099FF"),
+          data = data_fucus)
+          #SAP showed no difference between the Conditions and or Morphologies
+#LW_ratio
+box_lw = ggboxplot(x = "Condition", y = "LW_ratio", color = "Morphology", 
+          xlab = "Condition", ylab = "Length width ratio",
+          palette = c("#FF6666", "#0099FF"),
+          data = data_fucus)
+          #LW ratio showed no difference between morphology, only between condition - Exposed serrated & Sheltered not serrated
+#LP_ratio
+box_lp = ggboxplot(x = "Condition", y = "LP_ratio", color = "Morphology", 
+          xlab = "Condition", ylab = "Length perimeter ratio",
+          palette = c("#FF6666", "#0099FF"),
+          data = data_fucus)
+        #LP ratio showed a difference between Morphology and this got greater with Condition
+#STA
+box_sta = ggboxplot(x = "Condition", y = "STAmm2_g", color = "Morphology", 
+          xlab = "Condition", ylab = "STA (mm(^2)/g)",
+          palette = c("#FF6666", "#0099FF"),
+          data = data_fucus)
+          #STA showed great difference between Conditions, not Morphology
+
+#Arrange the boxplots
+plots_box = ggarrange(box_tdmc + theme(legend.position = "none"),
+          box_sap + theme(legend.position = "none"),
+          box_lw + theme(legend.position = "none"),
+          box_lp + theme(legend.position = "none"),
+          box_sta + theme(legend.position = "right"), 
+          nrow = 2, ncol = 3)
+ggsave("C:/Users/hugom/OneDrive/Skrivbord/examensarbete/Graphs/plots_box.png",
+                                      plot = plots_box, width = 10, height = 8,
+                                      dpi = 300)
+
+m6 = lm(SA_P ~ Condition * Morphology + length_mm, data = data_fucus)
+summary(m6)
+
+library(emmeans)
+emmeans(m6, pairwise~Condition*Morphology )
+
+#subset data (only serrated and only non serrated - then t.test for both)
+
+#TDMC do i need this?
 m7 = lmer(TDMC ~ Condition + length_mm + (1 | transectlabel), data = data_fucus)
 summary(m7)
 ggscatter(x = "depth_interpolated", y = "TDMC", 
@@ -243,8 +283,6 @@ ggscatter(x = "depth_interpolated", y = "TDMC",
           palette = c("#009900", "#0099FF"),
           ellipse = TRUE, mean.point = TRUE,
           star.plot = TRUE)
-
-ggboxplot(x = "transectlabel", y = "TDMC", color = "Condition", data = data_fucus)
 
 #Is it possible to identify germlings based on their traits
 #Is serratus distinguishable by traits - most likely with area
@@ -256,34 +294,18 @@ library(car)
 library(ggfortify)
 library(MuMIn)
 
+#
 m8 = lmer(TDMC ~ scale(length_mm) + scale(depth_interpolated) + (1 | transectlabel), data = data_fucus)
 summary(m8)
 r.squaredGLMM(m8)
 qqp(resid(m8))
 
+#Select the data for the pca
 data_pca = data_fucus %>% select(TDMC, SA_P, LW_ratio, LP_ratio, STAmm2_g, wetweight_g, depth_interpolated, Condition)
 data_pca = na.omit(data_pca)
 data_pca_result = prcomp(data_pca[c(-6, -7, -8)], scale = TRUE)
 
-#PCA screeplot
-eigenvalues <- data_pca_result$sdev^2
-pcs <- 1:length(eigenvalues)
-regression_line <- lm(eigenvalues ~ pcs)
-
-screeplot(data_pca_result, main = "PCA", ylab = "Eigenvalues", xlab = "PCs")
-
-variance_percentage <- eigenvalues / sum(eigenvalues) * 100
-max_height <- max(data_pca_result$sdev)
-label_position <- eigenvalues + 0.000005 * max_height
-
-labels <- c("38%", "29%", "17%", "12%", "4%")
-label_pcs <- c(1, 2, 3, 4, 5)
-
-text(label_pcs, label_position - 0.05 * max_height, labels, pos = 3, adj = c(0.5, 0.5))
-
-abline(regression_line, col = "black")
-
-
+#autoplot for pca
 data_pca_x = data.frame(data_pca_result$x)
 
 ggscatter(x = "PC1", y = "PC2", color = "PC3", add = "reg.line", data = data_pca_x)
@@ -296,34 +318,34 @@ autoplot(data_pca_result, loadings = TRUE, loadings.label = TRUE, color = "Condi
 ####Multi density chart
 tra_dat = read_sheet("https://docs.google.com/spreadsheets/d/1fNnrs96uAcEXcz0evvIH6nLL-HG18aKn-hUdE6uLRuw/edit#gid=0", sheet = "adult", col_types = "ccccccccnnncnncc")
 
-# subset the data needed to interpolate the depth to the different points
-# correct the depth by the water level from the nearby station
+# Subset the data needed to interpolate the depth to the different points
+# Correct the depth by the water level from the nearby station
 depth_data <- 
   tra_dat %>% 
   mutate(depth_correct = (water_level_cm + depth_cm) ) %>%
   select(date, transect_id, position, depth_correct) %>%
   distinct()
 
-# problems with the start of transect 2, remove positions 0 to 4
-# we do not have a starting depth
+# Problems with the start of transect 2, remove positions 0 to 4
+# We do not have a starting depth
 depth_data <- 
   depth_data %>%
   filter( !(transect_id == 2 & position %in% 0:4) )
 
-# split into a list
+# Split into a list
 depth_list <- split(depth_data, depth_data$transect_id)
 
-# loop over all transects
+# Loop over all transects
 depth_out <- vector("list", length = length(depth_list))
 for(i in 1:length(depth_list)) {
   
-  # initialise a data.frame to work with
+  # Initialise a data.frame to work with
   df <- depth_list[[i]]
   
-  # get the dividers
+  # Get the dividers
   dividers <- which(!is.na(df$depth_correct) )
   
-  # duplicate middles for which the data are needed for multiple calculations
+  # Duplicate middles for which the data are needed for multiple calculations
   if (length(dividers) > 2) {
     
     dups <- dividers[-c(1, length(dividers))]
@@ -334,7 +356,7 @@ for(i in 1:length(depth_list)) {
     
   }
   
-  # add an ID column
+  # Add an ID column
   x <- vector("list", length = (length(dividers)-1))
   for(j in 1:(length(dividers)-1) ) {
     
@@ -342,13 +364,13 @@ for(i in 1:length(depth_list)) {
     
   }
   
-  # write the ID column into the data.frame
+  # Write the ID column into the data.frame
   df$position_id <- unlist(x)
   
-  # split data by the position ID
+  # Split data by the position ID
   df_list <- split(df, df$position_id)
   
-  # for each block, interpolate the depth between the points
+  # For each block, interpolate the depth between the points
   int_depth <- 
     lapply(df_list, function(y){
       
@@ -374,28 +396,28 @@ for(i in 1:length(depth_list)) {
   
 } 
 
-# bind the list into a data.frame
+# Bind the list into a data.frame
 depth_out <- bind_rows(depth_out)
 
-# join this back to the full dataset
+# Join this back to the full dataset
 tra_a <- 
   full_join(tra_dat, depth_out, by = c("date", "transect_id", "position")) %>%
   select(date, transect_id, site_code, time, position, water_level_cm, 
          depth_cm, depth_correct, depth_interpolated, binomial_code, length_cm, circum_cm, 
          field_observer, notes)
 
-# check the summary statistics
+# Check the summary statistics
 summary(tra_a)
 
-# check for unique values, especially for the binomial codes
+# Check for unique values, especially for the binomial codes
 lapply(tra_a, function(x) unique(x))
 
-# remove missing binomial codes and the missing values "", NA
+# Remove missing binomial codes and the missing values "", NA
 tra_a <- 
   tra_a %>%
   filter( !(binomial_code %in% c("-9999", "") | is.na(binomial_code) | is.na(depth_interpolated) )  )
 
-# work with the transect data
+# Work with the transect data
 ggplot(data = tra_a,
        mapping = aes(x = binomial_code, y = depth_interpolated)) +
   geom_point()
@@ -415,11 +437,11 @@ transect_summary <-
   transect_summary %>%
   select(data_id, binomial_code, mean_depth:quant_80)
 
-# load the raw allometric data
+# Load the raw allometric data
 allo_dat = read_sheet("https://docs.google.com/spreadsheets/d/1fNnrs96uAcEXcz0evvIH6nLL-HG18aKn-hUdE6uLRuw/edit#gid=0", sheet = "adult2", col_types = "ccccdcccccdcddddccdddccdccc")
 
 
-# remove the missing values from allo_dat
+# Remove the missing values from allo_dat
 allo_dat <- 
   allo_dat %>%
   filter(!is.na(depth_cm)) %>%
@@ -436,13 +458,13 @@ allo_dat %>%
 
 unique(allo_dat$site_code)
 
-# plot out the depth distribution
+# Plot out the depth distribution
 allo_dat %>%
   ggplot(data = ., 
          mapping = aes(x = binomial_code, y = depth_correct)) +
   geom_point()
 
-# get summary statistics
+# Get summary statistics
 allo_summary <- 
   allo_dat %>%
   group_by(binomial_code) %>%
@@ -452,20 +474,20 @@ allo_summary <-
             quant_20 = quantile(depth_correct, 0.20, na.rm = TRUE),
             quant_80 = quantile(depth_correct, 0.80, na.rm = TRUE))
 
-# add an allometry identifier
+# Add an allometry identifier
 allo_summary$data_id <- "allometry_data"
 
 allo_summary <- 
   allo_summary %>%
   select(data_id, binomial_code, mean_depth:quant_80)
 
-# we used these summary statistics to choose our experimental depths
+# We used these summary statistics to choose our experimental depths
 
-# plot the depth data for each species
+# Plot the depth data for each species
 names(allo_dat)
 names(tra_a)
 
-# bind these data together
+# Bind these data together
 all_depth <- 
   bind_rows(
     
@@ -484,8 +506,8 @@ all_depth$serrated = "no"
 all_depth$serrated[all_depth$binomial_code == "fu_se"] = "yes"
 all_depth$serrated[all_depth$binomial_code == "as_no"] = NA
 
-#plot of all 4 species
-#plot of morphology of germlings and adults
+#Plot of all 4 species
+#Plot of morphology of germlings and adults
 
 # Filter the relevant data
 adult_data <- all_depth %>% 
@@ -498,36 +520,47 @@ legend_labels <- c("fu_ve" = "F. vesiculosus",
                    "as_no" = "A. nodosum")
 
 # Create the multi-density plot with positive x-axis values
-chart <- ggplot(adult_data, aes(x = abs(depth_correct), fill = binomial_code)) +
+chart = ggplot(adult_data, aes(x = abs(depth_correct), fill = binomial_code)) +
   geom_density(alpha = 0.5) +
   labs(title = "Distribution of Adult Species",
        x = "Depth (cm)",
        y = "Density (%)",
        fill = "Species") +
-  theme(legend.position = "bottom") +
   scale_fill_manual(values = c("fu_sp" = "#99FF33",
                                "fu_ve" = "#6699FF",
                                "as_no" = "#FF99CC",
                                "fu_se" = "#FF6666"),
-                    labels = legend_labels) +
+  labels = legend_labels) +
+  theme_classic() +
+  theme(legend.position = "bottom") +
   scale_x_continuous(labels = abs) + 
   scale_y_percent()
 
 print(chart)
 
-#Adult morphology distribution - flip and reverse and stuff and add aschophyllum
-ggplot(adult_data, aes(x = depth_correct, fill = serrated)) +
+adult_data$serrated[is.na(adult_data$serrated)] = "A. nodosum"
+
+#Change the legends labels
+legend_labels <- c("no" = "Not serrated",
+                   "yes" = "Serrated",
+                   "A. nodosum" = "A. nodosum")
+
+#Adult morphology distribution - flip and reverse and stuff and add Aschophyllum
+p_adults = ggplot(adult_data, aes(x = abs(depth_correct), fill = serrated)) +
   geom_density(alpha = 0.7) +
   xlab("Depth (cm)") +
   ylab("Density (%)") +
-  scale_fill_manual(values = c("#FF99CC", "#6699FF", "#FF6666"), drop = TRUE) +
+  scale_fill_manual(values = c("#FF99CC", "#6699FF", "#FF6666"), drop = TRUE, labels = legend_labels) +
   theme(axis.text = element_text(size = 15),
         axis.title = element_text(size = 15),
         legend.title = element_text(size = 15),
         legend.text = element_text(size = 15)) + 
   guides(fill = guide_legend(title = "Morphology",
                              label.theme = element_text(size = 15))) + 
-  ggtitle("Distribution of Adult Morphology")
+  ggtitle("Distribution of Adult Morphology") +
+  scale_y_percent()
+
+
 
 
 #Exposed and Sheltered Germlings 
@@ -537,7 +570,7 @@ ggplot(adult_data, aes(x = depth_correct, fill = serrated)) +
 data_sheltered = data_measurements %>% filter(Condition != "Exposed")
 data_sheltered <- data_sheltered[!is.na(data_sheltered$Morphology), ]
 
-ggplot(data_sheltered, aes(x = depth_interpolated, fill = Morphology)) +
+p_germling_sheltered = ggplot(data_sheltered, aes(x = depth_interpolated, fill = Morphology)) +
   geom_density(alpha = 0.7) +
   xlab("Depth (cm)") +
   ylab("Density (%)") +
@@ -548,22 +581,34 @@ ggplot(data_sheltered, aes(x = depth_interpolated, fill = Morphology)) +
         legend.text = element_text(size = 15)) + 
   guides(fill = guide_legend(title = "Morphology",
                              label.theme = element_text(size = 15))) + 
-  ggtitle("Distribution of Sheltered Germling Morphology")
+  ggtitle("Distribution of Sheltered Germling Morphology") +
+  scale_y_percent()
 
-#Exposed germlings - NA still there?
 
-data_exposed = data_measurements %>% filter(Condition != "Sheltered")
-data_exposed <- data_exposed[!is.na(data_exposed$Condition), ]
 
-ggplot(data_exposed, aes(x = depth_interpolated, fill = Morphology)) +
-  geom_density(alpha = 0.7) +
+#Exposed germlings - NA there?
+
+#data_exposed = data_measurements %>% filter(Condition != "Sheltered")
+#data_exposed <- data_exposed[!is.na(data_exposed$Condition), ]
+
+data_exposed = data_measurements %>% 
+  filter(Condition != "Sheltered" & !is.na(depth_interpolated) & !is.na(Morphology))
+
+p_germling_exposed = ggplot(data_exposed, aes(x = depth_interpolated, fill = Morphology)) +
+  geom_density(alpha = 0.7, na.rm = TRUE) +
   xlab("Depth (cm)") +
   ylab("Density (%)") +
-  scale_fill_manual(values = c("#6699FF", "#FF6666"), drop = TRUE) +
+  scale_fill_manual(values = c("#6699FF", "#FF6666"), drop = TRUE) + theme_classic() +
   theme(axis.text = element_text(size = 15),
         axis.title = element_text(size = 15),
         legend.title = element_text(size = 15),
         legend.text = element_text(size = 15)) + 
   guides(fill = guide_legend(title = "Morphology",
                              label.theme = element_text(size = 15))) + 
-  ggtitle("Distribution of Exposed Germling Morphology")
+  ggtitle("Distribution of Exposed Germling Morphology") +
+  scale_y_percent()
+
+all_plots = ggarrange(p_adults,p_germling_sheltered,p_germling_exposed, chart, ncol = 1)
+
+ggsave(all_plots,width = 5,height = 10,units = "cm",path = "plots.jpg",dpi = 300)
+
