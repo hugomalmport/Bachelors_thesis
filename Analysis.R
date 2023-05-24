@@ -9,6 +9,7 @@ library(lmerTest)
 library(directlabels)
 library(patchwork)
 library(tidyr)
+library(scales)
 
 # Load the data from google sheets
 data_measurements = read_sheet("https://docs.google.com/spreadsheets/d/1fNnrs96uAcEXcz0evvIH6nLL-HG18aKn-hUdE6uLRuw/edit#gid=0", sheet = "measurements")
@@ -192,27 +193,25 @@ summary(m5_length)
 
 #STA plot
 plot_sta <- ggscatter(x = "depth_interpolated", y = "STAmm2_g",
-                     xlab = "Depth (cm)", ylab = "STA (mm(^2)/g)",
+                     xlab = "Depth (cm)",
                      color = "Morphology",
                      palette = c("#3399FF", "#FF6666"),
                      data = data_fucus, size = 4, alpha = 0.7) +
   geom_abline(intercept = m5$coefficients[1], slope = m5$coefficients[2], size = 1) +
-  guides(color = FALSE)
+  guides(color = FALSE) +
+  labs(y = bquote('STA' ~mm^2 ~g^-1))
 
 cor.test(data_fucus$STAmm2_g , data_fucus$depth_interpolated, method = "pearson")
 
 #Combined plots - arranged
-combined_plots <- plot_tdmc + plot_sap + plot_lw + plot_lp + plot_sta +
-  plot_layout(ncol = 3, nrow = 2) +
-  plot_annotation(title = "Traits and depth correlations", theme = theme(plot.title = element_text(size = 15))) +
-  theme(axis.text = element_text(size = 15),
-        axis.title = element_text(size = 15),
-        legend.title = element_text(size = 15),
-        legend.text = element_text(size = 15))
+scatter_plots = ggarrange(plot_tdmc, plot_sap, plot_lw, plot_lp, plot_sta,
+          nrow =2, ncol = 3, common.legend = TRUE,
+          legend = "top",
+          labels= c("A","B","C","D","E")) +
+  theme(text = element_text(size = 16))
 
-combined_plots
 ggsave("C:/Users/hugom/OneDrive/Skrivbord/examensarbete/Graphs/scatter_plots.png",
-       plot = combined_plots, width = 15, height = 10,
+       plot = scatter_plots, width = 20, height = 14,
        dpi = 300)
 
 ####Is there a difference between exposed and sheltered
@@ -249,21 +248,24 @@ box_lp = ggboxplot(x = "Condition", y = "LP_ratio", color = "Morphology",
         #LP ratio showed a difference between Morphology and this got greater with Condition
 #STA
 box_sta = ggboxplot(x = "Condition", y = "STAmm2_g", color = "Morphology", 
-          xlab = "Condition", ylab = "STA (mm(^2)/g)",
+          xlab = "Condition",
           palette = c("#FF6666", "#0099FF"),
-          data = data_fucus)
-          #STA showed great difference between Conditions, not Morphology
+          data = data_fucus) + 
+  labs(y = bquote('STA' ~mm^2 ~g^-1))
 
-#Arrange the boxplots
-plots_box = ggarrange(box_tdmc + theme(legend.position = "none"),
-          box_sap + theme(legend.position = "none"),
-          box_lw + theme(legend.position = "none"),
-          box_lp + theme(legend.position = "none"),
-          box_sta + theme(legend.position = "right"), 
-          nrow = 2, ncol = 3)
-ggsave("C:/Users/hugom/OneDrive/Skrivbord/examensarbete/Graphs/plots_box.png",
-                                      plot = plots_box, width = 10, height = 8,
-                                      dpi = 300)
+box_sta
+          #STA showed great difference between Conditions, not Morphology
+#Boxplots
+
+box_plots = ggarrange(box_tdmc, box_sap, box_lw, box_lp, box_sta,
+                       nrow =2, ncol = 3, common.legend = TRUE,
+                       legend = "top",
+                       labels= c("A","B","C","D","E")) +
+  theme(text = element_text(size = 16))
+
+ggsave("C:/Users/hugom/OneDrive/Skrivbord/examensarbete/Graphs/box_plots.png",
+       plot = plots_box, width = 20, height = 14, dpi = 300)
+
 
 m6 = lm(SA_P ~ Condition * Morphology + length_mm, data = data_fucus)
 summary(m6)
@@ -272,17 +274,6 @@ library(emmeans)
 emmeans(m6, pairwise~Condition*Morphology )
 
 #subset data (only serrated and only non serrated - then t.test for both)
-
-#TDMC do i need this?
-m7 = lmer(TDMC ~ Condition + length_mm + (1 | transectlabel), data = data_fucus)
-summary(m7)
-ggscatter(x = "depth_interpolated", y = "TDMC", 
-          color = "Condition", add = "reg.line",
-          xlab = "Depth (cm)", ylab = "TDMC",
-          data = data_fucus, 
-          palette = c("#009900", "#0099FF"),
-          ellipse = TRUE, mean.point = TRUE,
-          star.plot = TRUE)
 
 #Is it possible to identify germlings based on their traits
 #Is serratus distinguishable by traits - most likely with area
@@ -297,7 +288,6 @@ library(MuMIn)
 #
 m8 = lmer(TDMC ~ scale(length_mm) + scale(depth_interpolated) + (1 | transectlabel), data = data_fucus)
 summary(m8)
-r.squaredGLMM(m8)
 qqp(resid(m8))
 
 #Select the data for the pca
@@ -522,9 +512,9 @@ legend_labels <- c("fu_ve" = "F. vesiculosus",
 # Create the multi-density plot with positive x-axis values
 chart = ggplot(adult_data, aes(x = abs(depth_correct), fill = binomial_code)) +
   geom_density(alpha = 0.5) +
-  labs(title = "Distribution of Adult Species",
+  labs(title = "",
        x = "Depth (cm)",
-       y = "Density (%)",
+       y = "Density",
        fill = "Species") +
   scale_fill_manual(values = c("fu_sp" = "#99FF33",
                                "fu_ve" = "#6699FF",
@@ -533,8 +523,8 @@ chart = ggplot(adult_data, aes(x = abs(depth_correct), fill = binomial_code)) +
   labels = legend_labels) +
   theme_classic() +
   theme(legend.position = "bottom") +
-  scale_x_continuous(labels = abs) + 
-  scale_y_percent()
+  scale_x_continuous(labels = abs) +
+  xlim(c(0,85))
 
 print(chart)
 
@@ -549,18 +539,16 @@ legend_labels <- c("no" = "Not serrated",
 p_adults = ggplot(adult_data, aes(x = abs(depth_correct), fill = serrated)) +
   geom_density(alpha = 0.7) +
   xlab("Depth (cm)") +
-  ylab("Density (%)") +
+  ylab("Density") +
   scale_fill_manual(values = c("#FF99CC", "#6699FF", "#FF6666"), drop = TRUE, labels = legend_labels) +
+  theme_classic() +
   theme(axis.text = element_text(size = 15),
         axis.title = element_text(size = 15),
         legend.title = element_text(size = 15),
         legend.text = element_text(size = 15)) + 
   guides(fill = guide_legend(title = "Morphology",
-                             label.theme = element_text(size = 15))) + 
-  ggtitle("Distribution of Adult Morphology") +
-  scale_y_percent()
-
-
+  label.theme = element_text(size = 15))) + 
+  xlim(c(0,85))
 
 
 #Exposed and Sheltered Germlings 
@@ -573,16 +561,16 @@ data_sheltered <- data_sheltered[!is.na(data_sheltered$Morphology), ]
 p_germling_sheltered = ggplot(data_sheltered, aes(x = depth_interpolated, fill = Morphology)) +
   geom_density(alpha = 0.7) +
   xlab("Depth (cm)") +
-  ylab("Density (%)") +
+  ylab("Density") +
   scale_fill_manual(values = c("#FF99CC", "#6699FF", "#FF6666"), drop = TRUE) +
+  theme_classic() +
   theme(axis.text = element_text(size = 15),
         axis.title = element_text(size = 15),
         legend.title = element_text(size = 15),
         legend.text = element_text(size = 15)) + 
   guides(fill = guide_legend(title = "Morphology",
-                             label.theme = element_text(size = 15))) + 
-  ggtitle("Distribution of Sheltered Germling Morphology") +
-  scale_y_percent()
+  label.theme = element_text(size = 15))) + 
+  xlim(c(0,85))
 
 
 
@@ -597,18 +585,23 @@ data_exposed = data_measurements %>%
 p_germling_exposed = ggplot(data_exposed, aes(x = depth_interpolated, fill = Morphology)) +
   geom_density(alpha = 0.7, na.rm = TRUE) +
   xlab("Depth (cm)") +
-  ylab("Density (%)") +
+  ylab("Density") +
   scale_fill_manual(values = c("#6699FF", "#FF6666"), drop = TRUE) + theme_classic() +
+  theme_classic() +
   theme(axis.text = element_text(size = 15),
         axis.title = element_text(size = 15),
         legend.title = element_text(size = 15),
         legend.text = element_text(size = 15)) + 
   guides(fill = guide_legend(title = "Morphology",
                              label.theme = element_text(size = 15))) + 
-  ggtitle("Distribution of Exposed Germling Morphology") +
-  scale_y_percent()
+  xlim(c(0,85))
 
-all_plots = ggarrange(p_adults,p_germling_sheltered,p_germling_exposed, chart, ncol = 1)
+density_plots = ggarrange(chart, p_adults, p_germling_sheltered, p_germling_exposed,
+                      nrow =4, ncol = 1,
+                      legend = "none",
+                      labels= c("A","B","C","D")) +
+  theme(text = element_text(size = 16))
 
-ggsave(all_plots,width = 5,height = 10,units = "cm",path = "plots.jpg",dpi = 300)
+ggsave("C:/Users/hugom/OneDrive/Skrivbord/examensarbete/Graphs/density_plots.png",
+       plot = density_plots, width = 20, height = 14, dpi = 300)
 
