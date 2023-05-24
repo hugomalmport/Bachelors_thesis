@@ -267,7 +267,7 @@ ggsave("C:/Users/hugom/OneDrive/Skrivbord/examensarbete/Graphs/box_plots.png",
        plot = plots_box, width = 20, height = 14, dpi = 300)
 
 
-m6 = lm(SA_P ~ Condition * Morphology + length_mm, data = data_fucus)
+m6 = lm(SA_TDMC ~ Condition * Morphology + length_mm, data = data_fucus)
 summary(m6)
 
 library(emmeans)
