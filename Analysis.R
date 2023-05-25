@@ -6,10 +6,13 @@ library(dplyr)
 library(googlesheets4)
 library(lme4)
 library(lmerTest)
-library(directlabels)
-library(patchwork)
 library(tidyr)
-library(scales)
+library(car)
+library(ggfortify)
+library(MuMIn)
+library(emmeans)
+
+#Depth interpolation calculations!!
 
 # Load the data from google sheets
 data_measurements = read_sheet("https://docs.google.com/spreadsheets/d/1fNnrs96uAcEXcz0evvIH6nLL-HG18aKn-hUdE6uLRuw/edit#gid=0", sheet = "measurements")
@@ -87,227 +90,11 @@ data_measurements$depth_interpolated = round(data_measurements$depth_interpolate
 data_measurements$depth_interpolated = data_measurements$depth_interpolated*-1
 
 
-# Filter away A. nodosum
-
-data_fucus = data_measurements %>% filter(Morphology != "A. nodosum")
-
-#####Do traits of fucus change on a depth gradient
-
-#TDMC
-m1 = lm(TDMC ~ depth_interpolated, data = data_fucus)
-summary(m1)
-m1_length = lm(TDMC ~ depth_interpolated + length_mm, data = data_fucus)
-summary(m1_length)
-
-#TDMC plot
-plot_tdmc <- ggscatter(x = "depth_interpolated", y = "TDMC",
-                       xlab = "Depth (cm)", ylab = "TDMC",
-                       color = "Morphology",
-                       palette = c("#3399FF", "#FF6666"),
-                       data = data_fucus, size = 4, alpha = 0.7) +
-  geom_abline(intercept = m1$coefficients[1], slope = m1$coefficients[2], size = 1) +
-  guides(color = guide_legend(title = "Morphology",
-                              label.theme = element_text(size = 15)))
-
-cor.test(data_fucus$TDMC , data_fucus$depth_interpolated, method = "pearson")
-
-
-#SA:P
-m2 = lm(SA_P ~ depth_interpolated, data = data_fucus)
-summary(m2)
-m2_length = lm(SA_P ~ depth_interpolated + length_mm, data = data_fucus)
-summary(m2_length)
-
-#SA:P plot
-plot_sap <- ggscatter(x = "depth_interpolated", y = "SA_P",
-                      xlab = "Depth (cm)", ylab = "SA:P",
-                      color = "Morphology",
-                      palette = c("#3399FF", "#FF6666"),
-                      data = data_fucus, size = 4, alpha = 0.7) +
-  geom_abline(intercept = m2$coefficients[1], slope = m2$coefficients[2], size = 1) +
-  guides(color = FALSE)
-
-cor.test(data_fucus$SA_P , data_fucus$depth_interpolated, method = "pearson")
-
-
-#LW ratio
-m3 = lm(LW_ratio ~ depth_interpolated, data = data_fucus)
-summary(m3)
-m3_length = lm(LW_ratio ~ depth_interpolated + length_mm, data = data_fucus)
-summary(m3_length)
-
-#LW ratio plot
-plot_lw <- ggscatter(x = "depth_interpolated", y = "LW_ratio",
-                     xlab = "Depth (cm)", ylab = "Length width ratio",
-                     color = "Morphology",
-                     palette = c("#3399FF", "#FF6666"),
-                     data = data_fucus, size = 4, alpha = 0.7) +
-  geom_abline(intercept = m3$coefficients[1], slope = m3$coefficients[2], size = 1) +
-  guides(color = FALSE)
-
-#1. Different species occur in different depths
-#2. Serration is a suboptimal identifyer in small life stages are there other things changing with depth?
-m3 = lm(LW_ratio ~ depth_interpolated, data = data_fucus)
-summary(m3)
-#3. Length width ratio also changes with depth
-
-#4 Is this just because the shallow germlings are smaller? - control for length
-m3 = lm(LW_ratio ~ depth_interpolated + length_mm, data = data_fucus)
-summary(m3)
-
-#5 No, it still persists if we control for length - p = 0.00448
-
-t.test(LW_ratio ~ Morphology, data = data_fucus)
-
-t.test(LW_ratio ~ Morphology, data = data_fucus[data_fucus$length_mm > 30,])
-ggboxplot(x = "Morphology", y = "LW_ratio",
-          xlab = "Morphology", ylab = "Length width ratio",
-          color = "Morphology", palette = c("#FF6666", "#3366CC" ),
-          data = data_fucus[data_fucus$length_mm > 40,])
-
-cor.test(data_fucus$LW_ratio, data_fucus$depth_interpolated, method = "pearson")
-
-#LP ratio
-m4 = lm(LP_ratio ~ depth_interpolated, data = data_fucus)
-summary(m4)
-m4_length = lm(LP_ratio ~ depth_interpolated + length_mm, data = data_fucus)
-summary(m4_length)
-
-#LP ratio plot
-plot_lp <- ggscatter(x = "depth_interpolated", y = "LP_ratio",
-                     xlab = "Depth (cm)", ylab = "Length perimeter ratio",
-                     color = "Morphology",
-                     palette = c("#3399FF", "#FF6666"),
-                     data = data_fucus, size = 4, alpha = 0.7) +
-  geom_abline(intercept = m4$coefficients[1], slope = m4$coefficients[2], size = 1) +
-  guides(color = FALSE)
-
-cor.test(data_fucus$LP_ratio , data_fucus$depth_interpolated, method = "pearson")
-
-
-#STA(mm2/g-1)
-m5 = lm(STAmm2_g ~ depth_interpolated, data = data_fucus)
-summary(m5)
-m5_length = lm(STAmm2_g ~ depth_interpolated + length_mm, data = data_fucus)
-summary(m5_length)
-
-#STA plot
-plot_sta <- ggscatter(x = "depth_interpolated", y = "STAmm2_g",
-                     xlab = "Depth (cm)",
-                     color = "Morphology",
-                     palette = c("#3399FF", "#FF6666"),
-                     data = data_fucus, size = 4, alpha = 0.7) +
-  geom_abline(intercept = m5$coefficients[1], slope = m5$coefficients[2], size = 1) +
-  guides(color = FALSE) +
-  labs(y = bquote('STA' ~mm^2 ~g^-1))
-
-cor.test(data_fucus$STAmm2_g , data_fucus$depth_interpolated, method = "pearson")
-
-#Combined plots - arranged
-scatter_plots = ggarrange(plot_tdmc, plot_sap, plot_lw, plot_lp, plot_sta,
-          nrow =2, ncol = 3, common.legend = TRUE,
-          legend = "top",
-          labels= c("A","B","C","D","E")) +
-  theme(text = element_text(size = 16))
-
-ggsave("C:/Users/hugom/OneDrive/Skrivbord/examensarbete/Graphs/scatter_plots.png",
-       plot = scatter_plots, width = 20, height = 14,
-       dpi = 300)
-
-####Is there a difference between exposed and sheltered
-#Boxplots
-
-m6 = lm(LW_ratio ~ Condition, data = data_fucus)
-summary(m6)
-m6 = lm(LW_ratio ~ Condition + length_mm, data = data_fucus)
-summary(m6)
-
-#TDMC
-box_tdmc = ggboxplot(x = "Condition", y = "TDMC", color = "Morphology", 
-          xlab = "Condition", ylab = "TDMC",
-          palette = c("#FF6666", "#0099FF"),
-          data = data_fucus)
-          #TDMC showed no difference between the Conditions and or Morphologies
-#SAP
-box_sap = ggboxplot(x = "Condition", y = "SA_P", color = "Morphology", 
-          xlab = "Condition", ylab = "SA:P",
-          palette = c("#FF6666", "#0099FF"),
-          data = data_fucus)
-          #SAP showed no difference between the Conditions and or Morphologies
-#LW_ratio
-box_lw = ggboxplot(x = "Condition", y = "LW_ratio", color = "Morphology", 
-          xlab = "Condition", ylab = "Length width ratio",
-          palette = c("#FF6666", "#0099FF"),
-          data = data_fucus)
-          #LW ratio showed no difference between morphology, only between condition - Exposed serrated & Sheltered not serrated
-#LP_ratio
-box_lp = ggboxplot(x = "Condition", y = "LP_ratio", color = "Morphology", 
-          xlab = "Condition", ylab = "Length perimeter ratio",
-          palette = c("#FF6666", "#0099FF"),
-          data = data_fucus)
-        #LP ratio showed a difference between Morphology and this got greater with Condition
-#STA
-box_sta = ggboxplot(x = "Condition", y = "STAmm2_g", color = "Morphology", 
-          xlab = "Condition",
-          palette = c("#FF6666", "#0099FF"),
-          data = data_fucus) + 
-  labs(y = bquote('STA' ~mm^2 ~g^-1))
-
-box_sta
-          #STA showed great difference between Conditions, not Morphology
-#Boxplots
-
-box_plots = ggarrange(box_tdmc, box_sap, box_lw, box_lp, box_sta,
-                       nrow =2, ncol = 3, common.legend = TRUE,
-                       legend = "top",
-                       labels= c("A","B","C","D","E")) +
-  theme(text = element_text(size = 16))
-
-ggsave("C:/Users/hugom/OneDrive/Skrivbord/examensarbete/Graphs/box_plots.png",
-       plot = plots_box, width = 20, height = 14, dpi = 300)
-
-
-m6 = lm(SA_TDMC ~ Condition * Morphology + length_mm, data = data_fucus)
-summary(m6)
-
-library(emmeans)
-emmeans(m6, pairwise~Condition*Morphology )
-
-#subset data (only serrated and only non serrated - then t.test for both)
-
-#Is it possible to identify germlings based on their traits
-#Is serratus distinguishable by traits - most likely with area
-
-ggboxplot(x = "Condition", y = "depth_interpolated", data = data_measurements)
-
-#pca
-library(car)
-library(ggfortify)
-library(MuMIn)
-
-#
-m8 = lmer(TDMC ~ scale(length_mm) + scale(depth_interpolated) + (1 | transectlabel), data = data_fucus)
-summary(m8)
-qqp(resid(m8))
-
-#Select the data for the pca
-data_pca = data_fucus %>% select(TDMC, SA_P, LW_ratio, LP_ratio, STAmm2_g, wetweight_g, depth_interpolated, Condition)
-data_pca = na.omit(data_pca)
-data_pca_result = prcomp(data_pca[c(-6, -7, -8)], scale = TRUE)
-
-#autoplot for pca
-data_pca_x = data.frame(data_pca_result$x)
-
-ggscatter(x = "PC1", y = "PC2", color = "PC3", add = "reg.line", data = data_pca_x)
-
-autoplot(data_pca_result, loadings = TRUE, loadings.label = TRUE, color = "Condition", size = "depth_interpolated", data = data_pca)
-
-
-#Does the distribution of germlings look different from the adult distribution, filter for sheltered
-
+#### Adult and germling distribution data!!
 ####Multi density chart
 tra_dat = read_sheet("https://docs.google.com/spreadsheets/d/1fNnrs96uAcEXcz0evvIH6nLL-HG18aKn-hUdE6uLRuw/edit#gid=0", sheet = "adult", col_types = "ccccccccnnncnncc")
 
+# Adult depth data calculations
 # Subset the data needed to interpolate the depth to the different points
 # Correct the depth by the water level from the nearby station
 depth_data <- 
@@ -520,7 +307,7 @@ chart = ggplot(adult_data, aes(x = abs(depth_correct), fill = binomial_code)) +
                                "fu_ve" = "#6699FF",
                                "as_no" = "#FF99CC",
                                "fu_se" = "#FF6666"),
-  labels = legend_labels) +
+                    labels = legend_labels) +
   theme_classic() +
   theme(legend.position = "bottom") +
   scale_x_continuous(labels = abs) +
@@ -547,7 +334,7 @@ p_adults = ggplot(adult_data, aes(x = abs(depth_correct), fill = serrated)) +
         legend.title = element_text(size = 15),
         legend.text = element_text(size = 15)) + 
   guides(fill = guide_legend(title = "Morphology",
-  label.theme = element_text(size = 15))) + 
+                             label.theme = element_text(size = 15))) + 
   xlim(c(0,85))
 
 
@@ -569,7 +356,7 @@ p_germling_sheltered = ggplot(data_sheltered, aes(x = depth_interpolated, fill =
         legend.title = element_text(size = 15),
         legend.text = element_text(size = 15)) + 
   guides(fill = guide_legend(title = "Morphology",
-  label.theme = element_text(size = 15))) + 
+                             label.theme = element_text(size = 15))) + 
   xlim(c(0,85))
 
 
@@ -597,11 +384,248 @@ p_germling_exposed = ggplot(data_exposed, aes(x = depth_interpolated, fill = Mor
   xlim(c(0,85))
 
 density_plots = ggarrange(chart, p_adults, p_germling_sheltered, p_germling_exposed,
-                      nrow =4, ncol = 1,
-                      legend = "none",
-                      labels= c("A","B","C","D")) +
+                          nrow =4, ncol = 1,
+                          legend = "none",
+                          labels= c("A","B","C","D")) +
   theme(text = element_text(size = 16))
 
 ggsave("C:/Users/hugom/OneDrive/Skrivbord/examensarbete/Graphs/density_plots.png",
        plot = density_plots, width = 20, height = 14, dpi = 300)
+
+
+####Germling traits!!!
+
+# Filter away A. nodosum - distinguishable as germlings
+
+data_fucus = data_measurements %>% filter(Morphology != "A. nodosum")
+
+#####Do traits of fucus change on a depth gradient
+
+#TDMC
+m1 = lm(TDMC ~ depth_interpolated, data = data_fucus)
+summary(m1)
+m1_length = lm(TDMC ~ depth_interpolated + length_mm, data = data_fucus)
+summary(m1_length)
+#TDMC does not depend on depth when you control for length, therefore TDMC depends on size
+
+#TDMC plot
+plot_tdmc <- ggscatter(x = "depth_interpolated", y = "TDMC",
+                       xlab = "Depth (cm)", ylab = "TDMC",
+                       color = "Morphology",
+                       palette = c("#3399FF", "#FF6666"),
+                       data = data_fucus, size = 4, alpha = 0.7) +
+  geom_abline(intercept = m1$coefficients[1], slope = m1$coefficients[2], size = 1) +
+  guides(color = guide_legend(title = "Morphology",
+                              label.theme = element_text(size = 15)))
+
+# Pearson correlation test
+cor.test(data_fucus$TDMC , data_fucus$depth_interpolated, method = "pearson")
+
+#SA:P
+m2 = lm(SA_P ~ depth_interpolated, data = data_fucus)
+summary(m2)
+m2_length = lm(SA_P ~ depth_interpolated + length_mm, data = data_fucus)
+summary(m2_length)
+#SA:P does not depend on length when you control for length, therefore SA:P depends on length
+
+#SA:P plot
+plot_sap <- ggscatter(x = "depth_interpolated", y = "SA_P",
+                      xlab = "Depth (cm)", ylab = "SA:P",
+                      color = "Morphology",
+                      palette = c("#3399FF", "#FF6666"),
+                      data = data_fucus, size = 4, alpha = 0.7) +
+  geom_abline(intercept = m2$coefficients[1], slope = m2$coefficients[2], size = 1) +
+  guides(color = FALSE)
+
+
+cor.test(data_fucus$SA_P , data_fucus$depth_interpolated, method = "pearson")
+
+
+#LW ratio
+m3 = lm(LW_ratio ~ depth_interpolated, data = data_fucus)
+summary(m3)
+m3_length = lm(LW_ratio ~ depth_interpolated + length_mm, data = data_fucus)
+summary(m3_length)
+#LW-ratio still depends on depth when you control for length
+
+#LW ratio plot
+plot_lw <- ggscatter(x = "depth_interpolated", y = "LW_ratio",
+                     xlab = "Depth (cm)", ylab = "Length width ratio",
+                     color = "Morphology",
+                     palette = c("#3399FF", "#FF6666"),
+                     data = data_fucus, size = 4, alpha = 0.7) +
+  geom_abline(intercept = m3$coefficients[1], slope = m3$coefficients[2], size = 1) +
+  guides(color = FALSE)
+
+cor.test(data_fucus$SA_P , data_fucus$depth_interpolated, method = "pearson")
+
+#LP ratio
+m4 = lm(LP_ratio ~ depth_interpolated, data = data_fucus)
+summary(m4)
+m4_length = lm(LP_ratio ~ depth_interpolated + length_mm, data = data_fucus)
+summary(m4_length)
+#LP-ratio depends more on depth when you control for length, but also on depth
+
+#LP ratio plot
+plot_lp <- ggscatter(x = "depth_interpolated", y = "LP_ratio",
+                     xlab = "Depth (cm)", ylab = "Length perimeter ratio",
+                     color = "Morphology",
+                     palette = c("#3399FF", "#FF6666"),
+                     data = data_fucus, size = 4, alpha = 0.7) +
+  geom_abline(intercept = m4$coefficients[1], slope = m4$coefficients[2], size = 1) +
+  guides(color = FALSE)
+
+cor.test(data_fucus$LP_ratio , data_fucus$depth_interpolated, method = "pearson")
+
+
+#STA(mm2g-1)
+m5 = lm(STAmm2_g ~ depth_interpolated, data = data_fucus)
+summary(m5)
+m5_length = lm(STAmm2_g ~ depth_interpolated + length_mm, data = data_fucus)
+summary(m5_length)
+#STA still depends on depth when controlling for length, which it also slightly depends on
+
+#STA plot
+plot_sta <- ggscatter(x = "depth_interpolated", y = "STAmm2_g",
+                     xlab = "Depth (cm)",
+                     color = "Morphology",
+                     palette = c("#3399FF", "#FF6666"),
+                     data = data_fucus, size = 4, alpha = 0.7) +
+  geom_abline(intercept = m5$coefficients[1], slope = m5$coefficients[2], size = 1) +
+  guides(color = FALSE) +
+  labs(y = bquote('STA' ~mm^2 ~g^-1))
+
+cor.test(data_fucus$STAmm2_g , data_fucus$depth_interpolated, method = "pearson")
+
+#Scatter plots - arranged
+scatter_plots = ggarrange(plot_tdmc, plot_sap, plot_lw, plot_lp, plot_sta,
+          nrow =2, ncol = 3, common.legend = TRUE,
+          legend = "top",
+          labels= c("A","B","C","D","E")) +
+  theme(text = element_text(size = 16))
+
+#Save to desktop
+ggsave("C:/Users/hugom/OneDrive/Skrivbord/examensarbete/Graphs/scatter_plots.png",
+       plot = scatter_plots, width = 20, height = 14,
+       dpi = 300)
+
+
+#T-tests of the traits
+
+#LW-ratio
+t.test(LW_ratio ~ Morphology, data = data_fucus)
+
+t.test(LW_ratio ~ Morphology, data = data_fucus[data_fucus$length_mm > 30,])
+
+
+
+####Is there a difference between exposed and sheltered
+#Boxplots
+
+#TDMC
+m6 = lm(TDMC ~ Condition * Morphology, data = data_fucus)
+summary(m6)
+m6_length = lm(TDMC ~ Condition * Morphology + length_mm, data = data_fucus)
+summary(m6_length)
+#TDMC showed a dependent on length alone, but not condition or Morphology
+emmeans(m6, pairwise~Condition*Morphology)
+#TDMC did not differ between condition or morphology
+
+#TDMC plot
+box_tdmc = ggboxplot(x = "Condition", y = "TDMC", color = "Morphology", 
+          xlab = "Condition", ylab = "TDMC",
+          palette = c("#FF6666", "#0099FF"),
+          data = data_fucus)
+
+#SA:P
+m7 = lm(SA_P ~ Condition * Morphology, data = data_fucus)
+summary(m7)
+m7_length = lm(SA_P ~ Condition * Morphology + length_mm, data = data_fucus)
+summary(m7_length)
+#SA:P showed a dependent on length alone, but not condition or Morphology
+emmeans(m7, pairwise~Condition*Morphology)
+#SA:P showed difference between Morphology on sheltered shores and morphology on sheltered serrated vs exposed non serrated
+
+#SAP plot
+box_sap = ggboxplot(x = "Condition", y = "SA_P", color = "Morphology", 
+          xlab = "Condition", ylab = "SA:P",
+          palette = c("#FF6666", "#0099FF"),
+          data = data_fucus)
+          #SAP showed no difference between the Conditions and or Morphologies
+
+#LW-ratio
+m8 = lm(LW_ratio ~ Condition * Morphology, data = data_fucus)
+summary(m8)
+m8_length = lm(LW_ratio ~ Condition * Morphology + length_mm, data = data_fucus)
+summary(m8_length)
+#LW-ratio showed a slight dependent on Morphology
+emmeans(m8, pairwise~Condition*Morphology)
+#LW-ratio showed difference between not serrated sheltered and serrated exposed
+
+#LW-ratio plot
+box_lw = ggboxplot(x = "Condition", y = "LW_ratio", color = "Morphology", 
+          xlab = "Condition", ylab = "Length width ratio",
+          palette = c("#FF6666", "#0099FF"),
+          data = data_fucus)
+
+#LP-ratio
+m9 = lm(LP_ratio ~ Condition * Morphology, data = data_fucus)
+summary(m9)
+m9_length = lm(LP_ratio ~ Condition * Morphology + length_mm, data = data_fucus)
+summary(m9_length)
+#LP-ratio showed dependent on morphology and length
+emmeans(m9, pairwise~Condition*Morphology)
+#LP-ratio showed difference between not serrated sheltered and serrated exposed germlings
+
+#LP_ratio plot
+box_lp = ggboxplot(x = "Condition", y = "LP_ratio", color = "Morphology", 
+          xlab = "Condition", ylab = "Length perimeter ratio",
+          palette = c("#FF6666", "#0099FF"),
+          data = data_fucus)
+
+#STA
+m10 = lm(STAmm2_g ~ Condition * Morphology, data = data_fucus)
+summary(m10)
+m10_length = lm(STAmm2_g ~ Condition * Morphology + length_mm, data = data_fucus)
+summary(m10_length)
+#STA depend on morphology but also slightly on length
+emmeans(m10, pairwise~Condition*Morphology)
+#STA differ mostly from morphology but also a little depending on condition
+
+#STA plot
+box_sta = ggboxplot(x = "Condition", y = "STAmm2_g", color = "Morphology", 
+          xlab = "Condition",
+          palette = c("#FF6666", "#0099FF"),
+          data = data_fucus) + 
+  labs(y = bquote('STA' ~mm^2 ~g^-1))
+          #STA showed great difference between Conditions, not Morphology
+
+#Box plots arranged
+
+box_plots = ggarrange(box_tdmc, box_sap, box_lw, box_lp, box_sta,
+                       nrow =2, ncol = 3, common.legend = TRUE,
+                       legend = "top",
+                       labels= c("A","B","C","D","E")) +
+  theme(text = element_text(size = 16))
+
+ggsave("C:/Users/hugom/OneDrive/Skrivbord/examensarbete/Graphs/box_plots.png",
+       plot = box_plots, width = 20, height = 14, dpi = 300)
+
+
+#PCA
+m11 = lmer(TDMC ~ scale(length_mm) + scale(depth_interpolated) + (1 | transectlabel), data = data_fucus)
+summary(m11)
+qqp(resid(m11))
+
+#Select the data for the pca
+data_pca = data_fucus %>% select(TDMC, SA_P, LW_ratio, LP_ratio, STAmm2_g, wetweight_g, depth_interpolated, Condition)
+data_pca = na.omit(data_pca)
+data_pca_result = prcomp(data_pca[c(-6, -7, -8)], scale = TRUE)
+
+#autoplot for pca
+data_pca_x = data.frame(data_pca_result$x)
+
+ggscatter(x = "PC1", y = "PC2", color = "PC3", add = "reg.line", data = data_pca_x)
+
+autoplot(data_pca_result, loadings = TRUE, loadings.label = TRUE, color = "Condition", size = "depth_interpolated", data = data_pca)
 
