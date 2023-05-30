@@ -11,6 +11,8 @@ library(car)
 library(ggfortify)
 library(MuMIn)
 library(emmeans)
+library(rstatix)
+
 
 #Depth interpolation calculations!!
 
@@ -309,6 +311,10 @@ chart = ggplot(adult_data, aes(x = abs(depth_correct), fill = binomial_code)) +
                                "fu_se" = "#FF6666"),
                     labels = legend_labels) +
   theme_classic() +
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 20),
+        legend.title = element_text(size = 20),
+        legend.text = element_text(size = 20)) +
   theme(legend.position = "bottom") +
   scale_x_continuous(labels = abs) +
   xlim(c(0,85))
@@ -329,12 +335,12 @@ p_adults = ggplot(adult_data, aes(x = abs(depth_correct), fill = serrated)) +
   ylab("Density") +
   scale_fill_manual(values = c("#FF99CC", "#6699FF", "#FF6666"), drop = TRUE, labels = legend_labels) +
   theme_classic() +
-  theme(axis.text = element_text(size = 15),
-        axis.title = element_text(size = 15),
-        legend.title = element_text(size = 15),
-        legend.text = element_text(size = 15)) + 
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 20),
+        legend.title = element_text(size = 20),
+        legend.text = element_text(size = 20)) + 
   guides(fill = guide_legend(title = "Morphology",
-                             label.theme = element_text(size = 15))) + 
+                             label.theme = element_text(size = 20))) + 
   xlim(c(0,85))
 
 
@@ -351,15 +357,13 @@ p_germling_sheltered = ggplot(data_sheltered, aes(x = depth_interpolated, fill =
   ylab("Density") +
   scale_fill_manual(values = c("#FF99CC", "#6699FF", "#FF6666"), drop = TRUE) +
   theme_classic() +
-  theme(axis.text = element_text(size = 15),
-        axis.title = element_text(size = 15),
-        legend.title = element_text(size = 15),
-        legend.text = element_text(size = 15)) + 
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 20),
+        legend.title = element_text(size = 20),
+        legend.text = element_text(size = 20)) + 
   guides(fill = guide_legend(title = "Morphology",
-                             label.theme = element_text(size = 15))) + 
+                             label.theme = element_text(size = 20))) + 
   xlim(c(0,85))
-
-
 
 #Exposed germlings - NA there?
 
@@ -375,12 +379,12 @@ p_germling_exposed = ggplot(data_exposed, aes(x = depth_interpolated, fill = Mor
   ylab("Density") +
   scale_fill_manual(values = c("#6699FF", "#FF6666"), drop = TRUE) + theme_classic() +
   theme_classic() +
-  theme(axis.text = element_text(size = 15),
-        axis.title = element_text(size = 15),
-        legend.title = element_text(size = 15),
-        legend.text = element_text(size = 15)) + 
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 20),
+        legend.title = element_text(size = 20),
+        legend.text = element_text(size = 20)) + 
   guides(fill = guide_legend(title = "Morphology",
-                             label.theme = element_text(size = 15))) + 
+                             label.theme = element_text(size = 20))) + 
   xlim(c(0,85))
 
 density_plots = ggarrange(chart, p_adults, p_germling_sheltered, p_germling_exposed,
@@ -404,7 +408,7 @@ data_fucus = data_measurements %>% filter(Morphology != "A. nodosum")
 #TDMC
 m1 = lm(TDMC ~ depth_interpolated, data = data_fucus)
 summary(m1)
-m1_length = lm(TDMC ~ depth_interpolated + length_mm, data = data_fucus)
+m1_length = lmer(TDMC ~ depth_interpolated + length_mm + (1 | transectlabel), data = data_fucus)
 summary(m1_length)
 #TDMC does not depend on depth when you control for length, therefore TDMC depends on size
 
@@ -418,15 +422,15 @@ plot_tdmc <- ggscatter(x = "depth_interpolated", y = "TDMC",
   guides(color = guide_legend(title = "Morphology",
                               label.theme = element_text(size = 15)))
 
-# Pearson correlation test
-cor.test(data_fucus$TDMC , data_fucus$depth_interpolated, method = "pearson")
 
 #SA:P
 m2 = lm(SA_P ~ depth_interpolated, data = data_fucus)
 summary(m2)
-m2_length = lm(SA_P ~ depth_interpolated + length_mm, data = data_fucus)
+
+m2_length = lmer(SA_P ~ depth_interpolated + length_mm + (1 | transectlabel), data = data_fucus)
 summary(m2_length)
-#SA:P does not depend on length when you control for length, therefore SA:P depends on length
+
+#SA:P does not depend on depth when you control for length, therefore SA:P depends on length
 
 #SA:P plot
 plot_sap <- ggscatter(x = "depth_interpolated", y = "SA_P",
@@ -438,13 +442,10 @@ plot_sap <- ggscatter(x = "depth_interpolated", y = "SA_P",
   guides(color = FALSE)
 
 
-cor.test(data_fucus$SA_P , data_fucus$depth_interpolated, method = "pearson")
-
-
 #LW ratio
 m3 = lm(LW_ratio ~ depth_interpolated, data = data_fucus)
 summary(m3)
-m3_length = lm(LW_ratio ~ depth_interpolated + length_mm, data = data_fucus)
+m3_length = lmer(LW_ratio ~ depth_interpolated + length_mm + (1 | transectlabel), data = data_fucus)
 summary(m3_length)
 #LW-ratio still depends on depth when you control for length
 
@@ -457,12 +458,10 @@ plot_lw <- ggscatter(x = "depth_interpolated", y = "LW_ratio",
   geom_abline(intercept = m3$coefficients[1], slope = m3$coefficients[2], size = 1) +
   guides(color = FALSE)
 
-cor.test(data_fucus$SA_P , data_fucus$depth_interpolated, method = "pearson")
-
 #LP ratio
 m4 = lm(LP_ratio ~ depth_interpolated, data = data_fucus)
 summary(m4)
-m4_length = lm(LP_ratio ~ depth_interpolated + length_mm, data = data_fucus)
+m4_length = lmer(LP_ratio ~ depth_interpolated + length_mm + (1 | transectlabel), data = data_fucus)
 summary(m4_length)
 #LP-ratio depends more on depth when you control for length, but also on depth
 
@@ -475,13 +474,11 @@ plot_lp <- ggscatter(x = "depth_interpolated", y = "LP_ratio",
   geom_abline(intercept = m4$coefficients[1], slope = m4$coefficients[2], size = 1) +
   guides(color = FALSE)
 
-cor.test(data_fucus$LP_ratio , data_fucus$depth_interpolated, method = "pearson")
-
 
 #STA(mm2g-1)
 m5 = lm(STAmm2_g ~ depth_interpolated, data = data_fucus)
 summary(m5)
-m5_length = lm(STAmm2_g ~ depth_interpolated + length_mm, data = data_fucus)
+m5_length = lmer(STAmm2_g ~ depth_interpolated + length_mm + (1 | transectlabel), data = data_fucus)
 summary(m5_length)
 #STA still depends on depth when controlling for length, which it also slightly depends on
 
@@ -495,14 +492,12 @@ plot_sta <- ggscatter(x = "depth_interpolated", y = "STAmm2_g",
   guides(color = FALSE) +
   labs(y = bquote('STA' ~mm^2 ~g^-1))
 
-cor.test(data_fucus$STAmm2_g , data_fucus$depth_interpolated, method = "pearson")
-
 #Scatter plots - arranged
 scatter_plots = ggarrange(plot_tdmc, plot_sap, plot_lw, plot_lp, plot_sta,
-          nrow =2, ncol = 3, common.legend = TRUE,
-          legend = "top",
-          labels= c("A","B","C","D","E")) +
-  theme(text = element_text(size = 16))
+                          nrow =2, ncol = 3, common.legend = TRUE,
+                          legend = "top",
+                          labels= c("A","B","C","D","E")) +
+  theme(text = element_text(size = 50))
 
 #Save to desktop
 ggsave("C:/Users/hugom/OneDrive/Skrivbord/examensarbete/Graphs/scatter_plots.png",
@@ -510,14 +505,31 @@ ggsave("C:/Users/hugom/OneDrive/Skrivbord/examensarbete/Graphs/scatter_plots.png
        dpi = 300)
 
 
-#T-tests of the traits
+#Anova tests
+m12 = lmer(TDMC ~ Morphology * Condition + length_mm + (1 | transect), data = data_fucus)
+anova(m12)
+m13 = lmer(SA_P ~ Morphology * Condition + length_mm + (1 | transect), data = data_fucus)
+anova(m13)
+m14 = lmer(LW_ratio ~ Morphology * Condition + length_mm + (1 | transect), data = data_fucus)
+anova(m14)
+m15 = lmer(LP_ratio ~ Morphology * Condition + length_mm + (1 | transect), data = data_fucus)
+anova(m15)
+m16 = lmer(STAmm2_g ~ Morphology * Condition + length_mm + (1 | transect), data = data_fucus)
+anova(m16)
 
-#LW-ratio
-t.test(LW_ratio ~ Morphology, data = data_fucus)
 
-t.test(LW_ratio ~ Morphology, data = data_fucus[data_fucus$length_mm > 30,])
+#summarize and get R2 values
+library(jtools)
+summ(m1_length)
+summ(m2_length)
+summ(m3_length)
+summ(m4_length)
+summ(m5_length)
 
-
+#Pearson correlation
+data_fucus %>% select(STAmm2_g,TDMC,LW_ratio,LP_ratio,SA_P,depth_interpolated,length_mm) %>% cor_mat()
+m17 = data_fucus %>% select(TDMC, SA_P, LW_ratio, LP_ratio, STAmm2_g, depth_interpolated, length_mm) %>% cor_mat() %>% cor_get_pval()
+m17
 
 ####Is there a difference between exposed and sheltered
 #Boxplots
@@ -525,10 +537,11 @@ t.test(LW_ratio ~ Morphology, data = data_fucus[data_fucus$length_mm > 30,])
 #TDMC
 m6 = lm(TDMC ~ Condition * Morphology, data = data_fucus)
 summary(m6)
-m6_length = lm(TDMC ~ Condition * Morphology + length_mm, data = data_fucus)
+m6_length = lmer(TDMC ~ Condition * Morphology + length_mm + (1 | transectlabel), data = data_fucus)
 summary(m6_length)
+
 #TDMC showed a dependent on length alone, but not condition or Morphology
-emmeans(m6, pairwise~Condition*Morphology)
+emmeans(m6_length, pairwise~Condition*Morphology)
 #TDMC did not differ between condition or morphology
 
 #TDMC plot
@@ -540,10 +553,10 @@ box_tdmc = ggboxplot(x = "Condition", y = "TDMC", color = "Morphology",
 #SA:P
 m7 = lm(SA_P ~ Condition * Morphology, data = data_fucus)
 summary(m7)
-m7_length = lm(SA_P ~ Condition * Morphology + length_mm, data = data_fucus)
+m7_length = lmer(SA_P ~ Condition * Morphology + length_mm + (1 | transectlabel), data = data_fucus)
 summary(m7_length)
 #SA:P showed a dependent on length alone, but not condition or Morphology
-emmeans(m7, pairwise~Condition*Morphology)
+emmeans(m7_length, pairwise~Condition*Morphology)
 #SA:P showed difference between Morphology on sheltered shores and morphology on sheltered serrated vs exposed non serrated
 
 #SAP plot
@@ -556,10 +569,10 @@ box_sap = ggboxplot(x = "Condition", y = "SA_P", color = "Morphology",
 #LW-ratio
 m8 = lm(LW_ratio ~ Condition * Morphology, data = data_fucus)
 summary(m8)
-m8_length = lm(LW_ratio ~ Condition * Morphology + length_mm, data = data_fucus)
+m8_length = lmer(LW_ratio ~ Condition * Morphology + length_mm + (1 | transectlabel), data = data_fucus)
 summary(m8_length)
 #LW-ratio showed a slight dependent on Morphology
-emmeans(m8, pairwise~Condition*Morphology)
+emmeans(m8_length, pairwise~Condition*Morphology)
 #LW-ratio showed difference between not serrated sheltered and serrated exposed
 
 #LW-ratio plot
@@ -571,10 +584,10 @@ box_lw = ggboxplot(x = "Condition", y = "LW_ratio", color = "Morphology",
 #LP-ratio
 m9 = lm(LP_ratio ~ Condition * Morphology, data = data_fucus)
 summary(m9)
-m9_length = lm(LP_ratio ~ Condition * Morphology + length_mm, data = data_fucus)
+m9_length = lmer(LP_ratio ~ Condition * Morphology + length_mm + (1 | transectlabel), data = data_fucus)
 summary(m9_length)
 #LP-ratio showed dependent on morphology and length
-emmeans(m9, pairwise~Condition*Morphology)
+emmeans(m9_length, pairwise~Condition*Morphology)
 #LP-ratio showed difference between not serrated sheltered and serrated exposed germlings
 
 #LP_ratio plot
@@ -586,10 +599,10 @@ box_lp = ggboxplot(x = "Condition", y = "LP_ratio", color = "Morphology",
 #STA
 m10 = lm(STAmm2_g ~ Condition * Morphology, data = data_fucus)
 summary(m10)
-m10_length = lm(STAmm2_g ~ Condition * Morphology + length_mm, data = data_fucus)
+m10_length = lmer(STAmm2_g ~ Condition * Morphology + length_mm + (1 | transectlabel), data = data_fucus)
 summary(m10_length)
 #STA depend on morphology but also slightly on length
-emmeans(m10, pairwise~Condition*Morphology)
+emmeans(m10_length, pairwise~Condition*Morphology)
 #STA differ mostly from morphology but also a little depending on condition
 
 #STA plot
@@ -606,13 +619,13 @@ box_plots = ggarrange(box_tdmc, box_sap, box_lw, box_lp, box_sta,
                        nrow =2, ncol = 3, common.legend = TRUE,
                        legend = "top",
                        labels= c("A","B","C","D","E")) +
-  theme(text = element_text(size = 16))
+  theme(text = element_text(size = 50))
 
 ggsave("C:/Users/hugom/OneDrive/Skrivbord/examensarbete/Graphs/box_plots.png",
        plot = box_plots, width = 20, height = 14, dpi = 300)
 
 
-#PCA
+#PCA not used - future project????
 m11 = lmer(TDMC ~ scale(length_mm) + scale(depth_interpolated) + (1 | transectlabel), data = data_fucus)
 summary(m11)
 qqp(resid(m11))
